@@ -25,4 +25,15 @@ public class MaintenanceRequestController {
                 authentication.getName()
         );
     }
+    
+    @PutMapping("/requests/{requestId}")
+    public MaintenanceRequest updateRequest(
+            @PathVariable Long requestId,
+            @Valid @RequestBody UpdateMaintenanceRequest request) {
+
+        return maintenanceRequestService.updateRequest(
+                requestId,
+                request
+        );
+    }
 }

@@ -51,4 +51,21 @@ public class MaintenanceRequestService {
 
         return maintenanceRequestRepository.save(maintenanceRequest);
     }
+    
+    public MaintenanceRequest updateRequest(
+            Long requestId,
+            UpdateMaintenanceRequest request) {
+
+        MaintenanceRequest maintenanceRequest =
+                maintenanceRequestRepository.findById(requestId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Maintenance request not found: " + requestId));
+
+        maintenanceRequest.setDescription(request.description());
+        maintenanceRequest.setPriority(request.priority());
+        maintenanceRequest.setUpdatedAt(LocalDateTime.now());
+
+        return maintenanceRequestRepository.save(maintenanceRequest);
+    }
 }
