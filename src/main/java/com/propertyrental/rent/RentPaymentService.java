@@ -6,9 +6,9 @@ import com.propertyrental.unit.UnitRepository;
 import com.propertyrental.user.User;
 import com.propertyrental.user.UserRepository;
 import org.springframework.stereotype.Service;
-
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class RentPaymentService {
@@ -54,5 +54,19 @@ public class RentPaymentService {
             throw new ResourceNotFoundException("Unit not found: " + unitId);
         }
         return rentPaymentRepository.findByUnitIdOrderByPaymentMonthDesc(unitId);
+    }
+    
+    public Optional<RentPayment> getPaymentForMonth(
+            Long unitId,
+            LocalDate paymentMonth) {
+
+        if (!unitRepository.existsById(unitId)) {
+            throw new ResourceNotFoundException("Unit not found: " + unitId);
+        }
+
+        return rentPaymentRepository.findByUnitIdAndPaymentMonth(
+                unitId,
+                paymentMonth
+        );
     }
 }
