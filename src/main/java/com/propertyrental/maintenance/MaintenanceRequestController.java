@@ -46,15 +46,16 @@ public class MaintenanceRequestController {
     
     @PostMapping("/requests/{requestId}/assignments")
     @PreAuthorize("hasRole('PROPERTY_MANAGER')")
-    public MaintenanceAssignment assignContractor(
+    public MaintenanceAssignmentResponse assignContractor(
             @PathVariable Long requestId,
             @Valid @RequestBody AssignContractorRequest request,
             Authentication authentication) {
 
-        return maintenanceRequestService.assignContractor(
-                requestId,
-                request,
-                authentication.getName());
+        return MaintenanceAssignmentMapper.toResponse(
+                maintenanceRequestService.assignContractor(
+                        requestId,
+                        request,
+                        authentication.getName()));
     }
     
     @DeleteMapping("/requests/{requestId}/assignments/{contractorId}")
@@ -85,25 +86,29 @@ public class MaintenanceRequestController {
     }
     
     @GetMapping("/{requestId}/timeline")
-    public List<MaintenanceTimeline> getTimeline(
+    public List<MaintenanceTimelineResponse> getTimeline(
             @PathVariable Long requestId,
             Authentication authentication) {
 
         return maintenanceRequestService.getTimeline(
                 requestId,
-                authentication.getName());
+                authentication.getName())
+                .stream()
+                .map(MaintenanceTimelineMapper::toResponse)
+                .toList();
     }
     
     @PostMapping("/requests/{requestId}/timeline/notes")
-    public MaintenanceTimeline addNote(
+    public MaintenanceTimelineResponse addNote(
             @PathVariable Long requestId,
             @Valid @RequestBody AddMaintenanceNoteRequest request,
             Authentication authentication) {
 
-        return maintenanceRequestService.addNote(
-                requestId,
-                request,
-                authentication.getName());
+        return MaintenanceTimelineMapper.toResponse(
+                maintenanceRequestService.addNote(
+                        requestId,
+                        request,
+                        authentication.getName()));
     }
     
     @GetMapping("/contractor/requests")
