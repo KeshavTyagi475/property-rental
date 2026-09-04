@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
+import com.propertyrental.alert.AlertService;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,13 +19,16 @@ public class DashboardService {
 
     private final MaintenanceRequestRepository maintenanceRequestRepository;
     private final RentPaymentRepository rentPaymentRepository;
+    private final AlertService alertService;
 
     public DashboardService(
             MaintenanceRequestRepository maintenanceRequestRepository,
-            RentPaymentRepository rentPaymentRepository) {
+            RentPaymentRepository rentPaymentRepository,
+            AlertService alertService) {
 
         this.maintenanceRequestRepository = maintenanceRequestRepository;
         this.rentPaymentRepository = rentPaymentRepository;
+        this.alertService = alertService;
     }
     
     public DashboardSummary getSummary() {
@@ -57,15 +60,17 @@ public class DashboardService {
                         .sumPaymentsForMonth(monthStart);
 
         long overdueRentUnits = 0;
-
-        LocalDate gracePeriodEnd =
-                monthStart.plusDays(3);
+        LocalDate gracePeriodEnd = monthStart.plusDays(3);
 
         if (!today.isBefore(gracePeriodEnd)) {
-            overdueRentUnits =
-                    rentPaymentRepository
-                            .countUnitsWithoutFullPayment(
-                                    monthStart);
+
+            var overdueUnits = rentPaymentRepository.findUnitsWithoutFullPayment(monthStart);
+
+            overdueRentUnits = overdueUnits.size();
+
+            for (var unit : overdueUnits) {
+                alertService.createRentOverdueAlert(unit, monthStart);
+            }
         }
 
         return new DashboardSummary(

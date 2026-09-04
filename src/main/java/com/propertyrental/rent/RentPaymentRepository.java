@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import com.propertyrental.unit.Unit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -38,4 +39,18 @@ public interface RentPaymentRepository extends JpaRepository<RentPayment, Long> 
 	        """)
 	long countUnitsWithoutFullPayment(
 	        @Param("month") LocalDate month);
+	
+	@Query("""
+		    SELECT u
+		    FROM Unit u
+		    WHERE u.archived = false
+		    AND NOT EXISTS (
+		        SELECT r.id
+		        FROM RentPayment r
+		        WHERE r.unit.id = u.id
+		        AND r.paymentMonth = :month
+		        AND r.amount >= u.monthlyRent
+		    )
+		    """)
+		List<Unit> findUnitsWithoutFullPayment(@Param("month") LocalDate month);
 }
