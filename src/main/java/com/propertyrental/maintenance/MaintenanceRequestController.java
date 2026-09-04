@@ -21,26 +21,27 @@ public class MaintenanceRequestController {
     }
 
     @PostMapping("/requests")
-    public MaintenanceRequest createRequest(
+    public MaintenanceRequestResponse createRequest(
             @Valid @RequestBody CreateMaintenanceRequest request,
             Authentication authentication) {
 
-        return maintenanceRequestService.createRequest(
-                request,
-                authentication.getName()
-        );
+    	return MaintenanceRequestMapper.toResponse(
+    	        maintenanceRequestService.createRequest(
+    	                request,
+    	                authentication.getName())
+    	);
     }
     
     @PutMapping("/{requestId}")
-    public MaintenanceRequest updateRequest(
+    public MaintenanceRequestResponse updateRequest(
             @PathVariable Long requestId,
             @Valid @RequestBody UpdateMaintenanceRequest request,
             Authentication authentication) {
-
-        return maintenanceRequestService.updateRequest(
-                requestId,
-                request,
-                authentication.getName());
+        return MaintenanceRequestMapper.toResponse(
+                maintenanceRequestService.updateRequest(
+                        requestId,
+                        request,
+                        authentication.getName()));
     }
     
     @PostMapping("/requests/{requestId}/assignments")
@@ -72,15 +73,15 @@ public class MaintenanceRequestController {
     }
     
     @PutMapping("/requests/{requestId}/status")
-    public MaintenanceRequest updateStatus(
+    public MaintenanceRequestResponse updateStatus(
             @PathVariable Long requestId,
             @Valid @RequestBody UpdateMaintenanceStatusRequest request,
             Authentication authentication) {
-
-        return maintenanceRequestService.updateStatus(
-                requestId,
-                request,
-                authentication.getName());
+        return MaintenanceRequestMapper.toResponse(
+                maintenanceRequestService.updateStatus(
+                        requestId,
+                        request,
+                        authentication.getName()));
     }
     
     @GetMapping("/{requestId}/timeline")
@@ -107,40 +108,42 @@ public class MaintenanceRequestController {
     
     @GetMapping("/contractor/requests")
     @PreAuthorize("hasRole('MAINTENANCE_CONTRACTOR')")
-    public List<MaintenanceRequest> getContractorRequests(
+    public List<MaintenanceRequestResponse> getContractorRequests(
             Authentication authentication) {
-
-        return maintenanceRequestService
-                .getRequestsForContractor(authentication.getName());
+        return maintenanceRequestService.getRequestsForContractor(
+                authentication.getName())
+                .stream()
+                .map(MaintenanceRequestMapper::toResponse)
+                .toList();
     }
     
     @GetMapping("/requests/search")
-    public Page<MaintenanceRequest> searchRequests(
-            @RequestParam(required = false) String search,
+    public Page<MaintenanceRequestResponse> searchRequests(
+            @RequestParam(required = false) String text,
             @RequestParam(required = false) Long unitId,
             @RequestParam(required = false) Status status,
             @RequestParam(required = false) Long contractorId,
             @RequestParam(required = false) Priority priority,
-            @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String sortDirection,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String direction,
             Authentication authentication) {
 
-        MaintenanceSearchRequest request =
-                new MaintenanceSearchRequest(
-                        search,
-                        unitId,
-                        status,
-                        contractorId,
-                        priority,
-                        sortBy,
-                        sortDirection,
-                        page,
-                        size);
+    	MaintenanceSearchRequest request = new MaintenanceSearchRequest(
+    	        text,
+    	        unitId,
+    	        status,
+    	        contractorId,
+    	        priority,
+    	        sortBy,
+    	        direction,
+    	        page,
+    	        size);
 
         return maintenanceRequestService.searchRequests(
                 request,
-                authentication.getName());
+                authentication.getName())
+                .map(MaintenanceRequestMapper::toResponse);
     }
 }

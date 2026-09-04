@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 public interface MaintenanceRequestRepository
         extends JpaRepository<MaintenanceRequest, Long>, JpaSpecificationExecutor<MaintenanceRequest>  {
 	List<MaintenanceRequest> findDistinctByAssignmentsContractorId(Long contractorId);
+	List<MaintenanceRequest> findByUnitIdOrderByCreatedAtDesc(Long unitId);
 	
 	@Query("""
 	        SELECT COUNT(m)
