@@ -2,7 +2,8 @@ package com.propertyrental.maintenance;
 
 import jakarta.validation.Valid;
 import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -105,5 +106,32 @@ public class MaintenanceRequestController {
 
         return maintenanceRequestService
                 .getRequestsForContractor(authentication.getName());
+    }
+    
+    @GetMapping("/requests/search")
+    public Page<MaintenanceRequest> searchRequests(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long unitId,
+            @RequestParam(required = false) Status status,
+            @RequestParam(required = false) Long contractorId,
+            @RequestParam(required = false) Priority priority,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDirection,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        MaintenanceSearchRequest request =
+                new MaintenanceSearchRequest(
+                        search,
+                        unitId,
+                        status,
+                        contractorId,
+                        priority,
+                        sortBy,
+                        sortDirection,
+                        page,
+                        size);
+
+        return maintenanceRequestService.searchRequests(request);
     }
 }

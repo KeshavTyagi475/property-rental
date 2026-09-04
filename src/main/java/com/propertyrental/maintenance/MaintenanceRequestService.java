@@ -10,6 +10,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 @Service
 public class MaintenanceRequestService {
@@ -321,5 +326,61 @@ public class MaintenanceRequestService {
 
         return maintenanceRequestRepository
                 .findDistinctByAssignmentsContractorId(contractor.getId());
+    }
+    
+    public Page<MaintenanceRequest> searchRequests(
+            MaintenanceSearchRequest request) {
+
+        int page = Math.max(request.page(), 0);
+        int size = Math.min(Math.max(request.size(), 1), 100);
+
+        Specification<MaintenanceRequest> specification =
+                Specification.where(
+                        MaintenanceRequestSpecifications.hasSearch(
+                                request.search()))
+                .and(
+                        MaintenanceRequestSpecifications.hasUnitId(
+                                request.unitId()))
+                .and(
+                        MaintenanceRequestSpecifications.hasStatus(
+                                request.status()))
+                .and(
+                        MaintenanceRequestSpecifications.hasPriority(
+                                request.priority()))
+                .and(
+                        MaintenanceRequestSpecifications.hasContractorId(
+                                request.contractorId()));
+
+        Sort sort = buildSort(
+                request.sortBy(),
+                request.sortDirection());
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        return maintenanceRequestRepository.findAll(
+                specification,
+                pageable);
+    }
+    
+    private Sort buildSort(
+            String sortBy,
+            String sortDirection) {
+
+        String property;
+
+        if ("priority".equalsIgnoreCase(sortBy)) {
+            property = "priority";
+        } else if ("status".equalsIgnoreCase(sortBy)) {
+            property = "status";
+        } else {
+            property = "createdAt";
+        }
+
+        Sort.Direction direction =
+                "asc".equalsIgnoreCase(sortDirection)
+                        ? Sort.Direction.ASC
+                        : Sort.Direction.DESC;
+
+        return Sort.by(direction, property);
     }
 }

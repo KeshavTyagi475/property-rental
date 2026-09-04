@@ -1,5 +1,6 @@
 package com.propertyrental.maintenance;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.propertyrental.user.User;
 import jakarta.persistence.*;
 
@@ -21,6 +22,7 @@ public class MaintenanceAssignment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "maintenance_request_id", nullable = false)
     private MaintenanceRequest maintenanceRequest;
