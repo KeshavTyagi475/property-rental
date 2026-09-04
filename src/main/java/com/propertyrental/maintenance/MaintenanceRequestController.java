@@ -1,7 +1,9 @@
 package com.propertyrental.maintenance;
 
 import jakarta.validation.Valid;
+import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -39,38 +41,60 @@ public class MaintenanceRequestController {
         );
     }
     
-    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
     @PostMapping("/requests/{requestId}/assignments")
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
     public MaintenanceAssignment assignContractor(
             @PathVariable Long requestId,
-            @Valid @RequestBody AssignContractorRequest request) {
+            @Valid @RequestBody AssignContractorRequest request,
+            Authentication authentication) {
 
         return maintenanceRequestService.assignContractor(
                 requestId,
-                request.contractorId()
-        );
+                request,
+                authentication.getName());
     }
     
-    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
     @DeleteMapping("/requests/{requestId}/assignments/{contractorId}")
-    public void unassignContractor(
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
+    public ResponseEntity<Void> unassignContractor(
             @PathVariable Long requestId,
-            @PathVariable Long contractorId) {
+            @PathVariable Long contractorId,
+            Authentication authentication) {
 
         maintenanceRequestService.unassignContractor(
                 requestId,
-                contractorId
-        );
+                contractorId,
+                authentication.getName());
+
+        return ResponseEntity.noContent().build();
     }
     
     @PutMapping("/requests/{requestId}/status")
     public MaintenanceRequest updateStatus(
             @PathVariable Long requestId,
-            @Valid @RequestBody UpdateMaintenanceStatusRequest request) {
+            @Valid @RequestBody UpdateMaintenanceStatusRequest request,
+            Authentication authentication) {
 
         return maintenanceRequestService.updateStatus(
                 requestId,
-                request.status()
-        );
+                request,
+                authentication.getName());
+    }
+    
+    @GetMapping("/requests/{requestId}/timeline")
+    public List<MaintenanceTimeline> getTimeline(@PathVariable Long requestId) {
+        return maintenanceRequestService.getTimeline(requestId);
+    }
+    
+    @PostMapping("/requests/{requestId}/timeline/notes")
+    public MaintenanceTimeline addNote(
+            @PathVariable Long requestId,
+            @Valid @RequestBody AddMaintenanceNoteRequest request,
+            Authentication authentication) {
+
+        return maintenanceRequestService.addNote(
+                requestId,
+                request,
+                authentication.getName());
     }
 }

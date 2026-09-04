@@ -3,12 +3,13 @@ package com.propertyrental.maintenance;
 import com.propertyrental.ResourceNotFoundException;
 import com.propertyrental.unit.Unit;
 import com.propertyrental.unit.UnitRepository;
+import com.propertyrental.user.Role;
 import com.propertyrental.user.User;
 import com.propertyrental.user.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.List;
 
 @Service
 public class MaintenanceRequestService {
@@ -16,16 +17,19 @@ public class MaintenanceRequestService {
     private final MaintenanceRequestRepository maintenanceRequestRepository;
     private final UnitRepository unitRepository;
     private final UserRepository userRepository;
+    private final MaintenanceTimelineRepository maintenanceTimelineRepository;
 
     public MaintenanceRequestService(
             MaintenanceRequestRepository maintenanceRequestRepository,
             UnitRepository unitRepository,
             UserRepository userRepository,
-            MaintenanceAssignmentRepository maintenanceAssignmentRepository) {
+            MaintenanceAssignmentRepository maintenanceAssignmentRepository,
+            MaintenanceTimelineRepository maintenanceTimelineRepository) {
         this.maintenanceRequestRepository = maintenanceRequestRepository;
         this.unitRepository = unitRepository;
         this.userRepository = userRepository;
         this.maintenanceAssignmentRepository = maintenanceAssignmentRepository;
+        this.maintenanceTimelineRepository = maintenanceTimelineRepository;
     }
 
     public MaintenanceRequest createRequest(
@@ -52,7 +56,20 @@ public class MaintenanceRequestService {
         maintenanceRequest.setCreatedAt(LocalDateTime.now());
         maintenanceRequest.setUpdatedAt(LocalDateTime.now());
 
-        return maintenanceRequestRepository.save(maintenanceRequest);
+        //return maintenanceRequestRepository.save(maintenanceRequest);
+        MaintenanceRequest savedRequest =
+                maintenanceRequestRepository.save(maintenanceRequest);
+
+        MaintenanceTimeline timeline = new MaintenanceTimeline();
+
+        timeline.setMaintenanceRequest(savedRequest);
+        timeline.setEventType(TimelineEventType.CREATED);
+        timeline.setPerformedBy(createdBy);
+        timeline.setCreatedAt(LocalDateTime.now());
+
+        maintenanceTimelineRepository.save(timeline);
+
+        return savedRequest;
     }
     
     public MaintenanceRequest updateRequest(
@@ -72,110 +89,159 @@ public class MaintenanceRequestService {
         return maintenanceRequestRepository.save(maintenanceRequest);
     }
     
+    @Transactional
     public MaintenanceAssignment assignContractor(
             Long requestId,
-            Long contractorId) {
+            AssignContractorRequest request,
+            String username) {
 
         MaintenanceRequest maintenanceRequest =
                 maintenanceRequestRepository.findById(requestId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
-                                        "Maintenance request not found: " + requestId));
+                                        "Maintenance request not found"));
 
-        User contractor = userRepository.findById(contractorId)
+        User performedBy = userRepository.findByUsername(username)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "User not found: " + contractorId));
+                                "User not found"));
 
-        if (contractor.getRole() != com.propertyrental.user.Role.MAINTENANCE_CONTRACTOR) {
+        User contractor = userRepository.findById(request.contractorId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Contractor not found"));
+
+        if (contractor.getRole() != Role.MAINTENANCE_CONTRACTOR) {
             throw new IllegalArgumentException(
-                    "User must have the MAINTENANCE_CONTRACTOR role");
+                    "User is not a maintenance contractor");
         }
-        
+
         if (maintenanceAssignmentRepository
-                .findByMaintenanceRequestIdAndContractorId(requestId, contractorId)
+                .findByMaintenanceRequestIdAndContractorId(
+                        requestId,
+                        request.contractorId())
                 .isPresent()) {
+
             throw new IllegalArgumentException(
-                    "Contractor is already assigned to this maintenance request");
+                    "Contractor is already assigned to this request");
         }
+
         MaintenanceAssignment assignment = new MaintenanceAssignment();
         assignment.setMaintenanceRequest(maintenanceRequest);
         assignment.setContractor(contractor);
         assignment.setAssignedAt(LocalDateTime.now());
 
-        return maintenanceAssignmentRepository.save(assignment);
+        MaintenanceAssignment savedAssignment =
+                maintenanceAssignmentRepository.save(assignment);
+
+        MaintenanceTimeline timeline = new MaintenanceTimeline();
+        timeline.setMaintenanceRequest(maintenanceRequest);
+        timeline.setEventType(TimelineEventType.ASSIGNED);
+        timeline.setContractor(contractor);
+        timeline.setPerformedBy(performedBy);
+        timeline.setCreatedAt(LocalDateTime.now());
+
+        maintenanceTimelineRepository.save(timeline);
+
+        return savedAssignment;
     }
     
     @Transactional
     public void unassignContractor(
             Long requestId,
-            Long contractorId) {
-
-        if (!maintenanceRequestRepository.existsById(requestId)) {
-            throw new ResourceNotFoundException(
-                    "Maintenance request not found: " + requestId);
-        }
-
-        if (!userRepository.existsById(contractorId)) {
-            throw new ResourceNotFoundException(
-                    "User not found: " + contractorId);
-        }
-
-        Optional<MaintenanceAssignment> assignment =
-                maintenanceAssignmentRepository
-                        .findByMaintenanceRequestIdAndContractorId(
-                                requestId,
-                                contractorId);
-
-        if (assignment.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Contractor is not assigned to this maintenance request");
-        }
-
-        maintenanceAssignmentRepository
-                .deleteByMaintenanceRequestIdAndContractorId(
-                        requestId,
-                        contractorId);
-    }
-    
-    public MaintenanceRequest updateStatus(
-            Long requestId,
-            Status newStatus) {
+            Long contractorId,
+            String username) {
 
         MaintenanceRequest maintenanceRequest =
                 maintenanceRequestRepository.findById(requestId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
-                                        "Maintenance request not found: " + requestId));
+                                        "Maintenance request not found"));
 
-        Status currentStatus = maintenanceRequest.getStatus();
+        User performedBy = userRepository.findByUsername(username)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found"));
 
-        if (!isValidTransition(currentStatus, newStatus)) {
+        User contractor = userRepository.findById(contractorId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Contractor not found"));
+
+        MaintenanceAssignment assignment =
+                maintenanceAssignmentRepository
+                        .findByMaintenanceRequestIdAndContractorId(
+                                requestId,
+                                contractorId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Contractor is not assigned to this request"));
+
+        maintenanceAssignmentRepository.delete(assignment);
+
+        MaintenanceTimeline timeline = new MaintenanceTimeline();
+        timeline.setMaintenanceRequest(maintenanceRequest);
+        timeline.setEventType(TimelineEventType.UNASSIGNED);
+        timeline.setContractor(contractor);
+        timeline.setPerformedBy(performedBy);
+        timeline.setCreatedAt(LocalDateTime.now());
+
+        maintenanceTimelineRepository.save(timeline);
+    }
+    
+    @Transactional
+    public MaintenanceRequest updateStatus(
+            Long requestId,
+            UpdateMaintenanceStatusRequest request,
+            String username) {
+
+        MaintenanceRequest maintenanceRequest =
+                maintenanceRequestRepository.findById(requestId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Maintenance request not found"));
+
+        User performedBy = userRepository.findByUsername(username)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found"));
+
+        Status oldStatus = maintenanceRequest.getStatus();
+        Status newStatus = request.status();
+
+        if (!isValidTransition(oldStatus, newStatus)) {
             throw new IllegalArgumentException(
                     "Invalid status transition from "
-                            + currentStatus
-                            + " to "
-                            + newStatus);
+                            + oldStatus + " to " + newStatus);
         }
 
-        if (newStatus == Status.SCHEDULED) {
-            boolean hasAssignment =
-                    maintenanceAssignmentRepository
-                            .findByMaintenanceRequestId(requestId)
-                            .stream()
-                            .findAny()
-                            .isPresent();
+        if (newStatus == Status.SCHEDULED &&
+                maintenanceAssignmentRepository
+                        .findByMaintenanceRequestId(requestId)
+                        .isEmpty()) {
 
-            if (!hasAssignment) {
-                throw new IllegalArgumentException(
-                        "Cannot schedule a maintenance request without an assigned contractor");
-            }
+            throw new IllegalArgumentException(
+                    "A contractor must be assigned before scheduling");
         }
 
         maintenanceRequest.setStatus(newStatus);
         maintenanceRequest.setUpdatedAt(LocalDateTime.now());
 
-        return maintenanceRequestRepository.save(maintenanceRequest);
+        MaintenanceRequest savedRequest =
+                maintenanceRequestRepository.save(maintenanceRequest);
+
+        MaintenanceTimeline timeline = new MaintenanceTimeline();
+
+        timeline.setMaintenanceRequest(savedRequest);
+        timeline.setEventType(TimelineEventType.STATUS_CHANGED);
+        timeline.setOldStatus(oldStatus);
+        timeline.setNewStatus(newStatus);
+        timeline.setPerformedBy(performedBy);
+        timeline.setCreatedAt(LocalDateTime.now());
+
+        maintenanceTimelineRepository.save(timeline);
+
+        return savedRequest;
     }
 
     private boolean isValidTransition(
@@ -203,5 +269,42 @@ public class MaintenanceRequestService {
         }
 
         return false;
+    }
+    
+    public List<MaintenanceTimeline> getTimeline(Long requestId) {
+        if (!maintenanceRequestRepository.existsById(requestId)) {
+            throw new ResourceNotFoundException("Maintenance request not found");
+        }
+
+        return maintenanceTimelineRepository
+                .findByMaintenanceRequestIdOrderByCreatedAtAscIdAsc(requestId);
+    }
+    
+    @Transactional
+    public MaintenanceTimeline addNote(
+            Long requestId,
+            AddMaintenanceNoteRequest request,
+            String username) {
+
+        MaintenanceRequest maintenanceRequest =
+                maintenanceRequestRepository.findById(requestId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Maintenance request not found"));
+
+        User performedBy = userRepository.findByUsername(username)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found"));
+
+        MaintenanceTimeline timeline = new MaintenanceTimeline();
+
+        timeline.setMaintenanceRequest(maintenanceRequest);
+        timeline.setEventType(TimelineEventType.NOTE_ADDED);
+        timeline.setNote(request.note());
+        timeline.setPerformedBy(performedBy);
+        timeline.setCreatedAt(LocalDateTime.now());
+
+        return maintenanceTimelineRepository.save(timeline);
     }
 }
