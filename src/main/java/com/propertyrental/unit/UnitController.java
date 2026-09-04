@@ -17,11 +17,13 @@ public class UnitController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
     public List<Unit> getAllUnits() {
         return unitService.getAllUnits();
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
     public Unit getUnit(@PathVariable Long id) {
         return unitService.getUnit(id);
     }

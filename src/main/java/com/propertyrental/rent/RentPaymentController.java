@@ -38,11 +38,13 @@ public class RentPaymentController {
     }
     
     @GetMapping("/units/{unitId}/payments")
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
     public List<RentPayment> getPaymentsForUnit(@PathVariable Long unitId) {
         return rentPaymentService.getPaymentsForUnit(unitId);
     }
     
     @GetMapping("/units/{unitId}/payments/{paymentMonth}")
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
     public RentPayment getPaymentForMonth(
             @PathVariable Long unitId,
             @PathVariable String paymentMonth) {

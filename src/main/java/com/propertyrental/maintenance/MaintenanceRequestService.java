@@ -79,14 +79,19 @@ public class MaintenanceRequestService {
     
     public MaintenanceRequest updateRequest(
             Long requestId,
-            UpdateMaintenanceRequest request) {
+            UpdateMaintenanceRequest request,
+            String username) {
 
         MaintenanceRequest maintenanceRequest =
                 maintenanceRequestRepository.findById(requestId)
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Maintenance request not found: " + requestId));
-
+        
+        verifyMaintenanceRequestAccess(
+                maintenanceRequest,
+                username);
+        
         maintenanceRequest.setDescription(request.description());
         maintenanceRequest.setPriority(request.priority());
         maintenanceRequest.setUpdatedAt(LocalDateTime.now());
@@ -205,6 +210,9 @@ public class MaintenanceRequestService {
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Maintenance request not found"));
+        verifyMaintenanceRequestAccess(
+                maintenanceRequest,
+                username);
 
         User performedBy = userRepository.findByUsername(username)
                 .orElseThrow(() ->
@@ -248,7 +256,37 @@ public class MaintenanceRequestService {
 
         return savedRequest;
     }
+    
+    private void verifyMaintenanceRequestAccess(
+            MaintenanceRequest maintenanceRequest,
+            String username) {
 
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found: " + username));
+
+        if (user.getRole() == Role.PROPERTY_MANAGER) {
+            return;
+        }
+
+        if (user.getRole() != Role.MAINTENANCE_CONTRACTOR) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "User does not have maintenance request access");
+        }
+
+        boolean assigned = maintenanceAssignmentRepository
+                .findByMaintenanceRequestIdAndContractorId(
+                        maintenanceRequest.getId(),
+                        user.getId())
+                .isPresent();
+
+        if (!assigned) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Contractor is not assigned to this maintenance request");
+        }
+    }
+    
     private boolean isValidTransition(
             Status currentStatus,
             Status newStatus) {
@@ -276,10 +314,19 @@ public class MaintenanceRequestService {
         return false;
     }
     
-    public List<MaintenanceTimeline> getTimeline(Long requestId) {
-        if (!maintenanceRequestRepository.existsById(requestId)) {
-            throw new ResourceNotFoundException("Maintenance request not found");
-        }
+    public List<MaintenanceTimeline> getTimeline(
+            Long requestId,
+            String username) {
+
+        MaintenanceRequest maintenanceRequest =
+                maintenanceRequestRepository.findById(requestId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Maintenance request not found"));
+
+        verifyMaintenanceRequestAccess(
+                maintenanceRequest,
+                username);
 
         return maintenanceTimelineRepository
                 .findByMaintenanceRequestIdOrderByCreatedAtAscIdAsc(requestId);
@@ -296,6 +343,9 @@ public class MaintenanceRequestService {
                         .orElseThrow(() ->
                                 new ResourceNotFoundException(
                                         "Maintenance request not found"));
+        verifyMaintenanceRequestAccess(
+                maintenanceRequest,
+                username);
 
         User performedBy = userRepository.findByUsername(username)
                 .orElseThrow(() ->
@@ -329,8 +379,14 @@ public class MaintenanceRequestService {
     }
     
     public Page<MaintenanceRequest> searchRequests(
-            MaintenanceSearchRequest request) {
-
+            MaintenanceSearchRequest request,
+            String username) {
+    	
+    	User user = userRepository.findByUsername(username)
+    	        .orElseThrow(() ->
+    	                new ResourceNotFoundException(
+    	                        "User not found: " + username));
+    	
         int page = Math.max(request.page(), 0);
         int size = Math.min(Math.max(request.size(), 1), 100);
 
@@ -350,7 +406,13 @@ public class MaintenanceRequestService {
                 .and(
                         MaintenanceRequestSpecifications.hasContractorId(
                                 request.contractorId()));
-
+        
+        if (user.getRole() == Role.MAINTENANCE_CONTRACTOR) {
+            specification = specification.and(
+                    MaintenanceRequestSpecifications.hasContractorId(
+                            user.getId()));
+        }
+        
         Sort sort = buildSort(
                 request.sortBy(),
                 request.sortDirection());

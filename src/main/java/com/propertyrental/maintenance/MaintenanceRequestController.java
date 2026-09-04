@@ -31,15 +31,16 @@ public class MaintenanceRequestController {
         );
     }
     
-    @PutMapping("/requests/{requestId}")
+    @PutMapping("/{requestId}")
     public MaintenanceRequest updateRequest(
             @PathVariable Long requestId,
-            @Valid @RequestBody UpdateMaintenanceRequest request) {
+            @Valid @RequestBody UpdateMaintenanceRequest request,
+            Authentication authentication) {
 
         return maintenanceRequestService.updateRequest(
                 requestId,
-                request
-        );
+                request,
+                authentication.getName());
     }
     
     @PostMapping("/requests/{requestId}/assignments")
@@ -82,9 +83,14 @@ public class MaintenanceRequestController {
                 authentication.getName());
     }
     
-    @GetMapping("/requests/{requestId}/timeline")
-    public List<MaintenanceTimeline> getTimeline(@PathVariable Long requestId) {
-        return maintenanceRequestService.getTimeline(requestId);
+    @GetMapping("/{requestId}/timeline")
+    public List<MaintenanceTimeline> getTimeline(
+            @PathVariable Long requestId,
+            Authentication authentication) {
+
+        return maintenanceRequestService.getTimeline(
+                requestId,
+                authentication.getName());
     }
     
     @PostMapping("/requests/{requestId}/timeline/notes")
@@ -118,7 +124,8 @@ public class MaintenanceRequestController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDirection,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            Authentication authentication) {
 
         MaintenanceSearchRequest request =
                 new MaintenanceSearchRequest(
@@ -132,6 +139,8 @@ public class MaintenanceRequestController {
                         page,
                         size);
 
-        return maintenanceRequestService.searchRequests(request);
+        return maintenanceRequestService.searchRequests(
+                request,
+                authentication.getName());
     }
 }
