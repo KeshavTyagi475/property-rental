@@ -5,6 +5,8 @@ import com.propertyrental.user.User;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "maintenance_requests")
@@ -32,6 +34,10 @@ public class MaintenanceRequest {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
+    
+    @OneToMany(mappedBy = "maintenanceRequest",
+            fetch = FetchType.LAZY)
+    private List<MaintenanceAssignment> assignments = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -84,6 +90,10 @@ public class MaintenanceRequest {
 
     public void setCreatedBy(User createdBy) {
         this.createdBy = createdBy;
+    }
+    
+    public List<MaintenanceAssignment> getAssignments() {
+        return assignments;
     }
 
     public LocalDateTime getCreatedAt() {

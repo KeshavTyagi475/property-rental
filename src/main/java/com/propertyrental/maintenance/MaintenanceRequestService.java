@@ -307,4 +307,19 @@ public class MaintenanceRequestService {
 
         return maintenanceTimelineRepository.save(timeline);
     }
+    
+    public List<MaintenanceRequest> getRequestsForContractor(String username) {
+
+        User contractor = userRepository.findByUsername(username)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User not found"));
+
+        if (contractor.getRole() != Role.MAINTENANCE_CONTRACTOR) {
+            throw new IllegalArgumentException(
+                    "Only maintenance contractors can use this endpoint");
+        }
+
+        return maintenanceRequestRepository
+                .findDistinctByAssignmentsContractorId(contractor.getId());
+    }
 }

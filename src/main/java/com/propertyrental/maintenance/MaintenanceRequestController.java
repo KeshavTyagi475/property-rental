@@ -97,4 +97,13 @@ public class MaintenanceRequestController {
                 request,
                 authentication.getName());
     }
+    
+    @GetMapping("/contractor/requests")
+    @PreAuthorize("hasRole('MAINTENANCE_CONTRACTOR')")
+    public List<MaintenanceRequest> getContractorRequests(
+            Authentication authentication) {
+
+        return maintenanceRequestService
+                .getRequestsForContractor(authentication.getName());
+    }
 }
