@@ -6,12 +6,13 @@ import com.propertyrental.unit.UnitRepository;
 import com.propertyrental.user.User;
 import com.propertyrental.user.UserRepository;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 public class MaintenanceRequestService {
-
+	private final MaintenanceAssignmentRepository maintenanceAssignmentRepository;
     private final MaintenanceRequestRepository maintenanceRequestRepository;
     private final UnitRepository unitRepository;
     private final UserRepository userRepository;
@@ -19,10 +20,12 @@ public class MaintenanceRequestService {
     public MaintenanceRequestService(
             MaintenanceRequestRepository maintenanceRequestRepository,
             UnitRepository unitRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            MaintenanceAssignmentRepository maintenanceAssignmentRepository) {
         this.maintenanceRequestRepository = maintenanceRequestRepository;
         this.unitRepository = unitRepository;
         this.userRepository = userRepository;
+        this.maintenanceAssignmentRepository = maintenanceAssignmentRepository;
     }
 
     public MaintenanceRequest createRequest(
@@ -67,5 +70,71 @@ public class MaintenanceRequestService {
         maintenanceRequest.setUpdatedAt(LocalDateTime.now());
 
         return maintenanceRequestRepository.save(maintenanceRequest);
+    }
+    
+    public MaintenanceAssignment assignContractor(
+            Long requestId,
+            Long contractorId) {
+
+        MaintenanceRequest maintenanceRequest =
+                maintenanceRequestRepository.findById(requestId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Maintenance request not found: " + requestId));
+
+        User contractor = userRepository.findById(contractorId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found: " + contractorId));
+
+        if (contractor.getRole() != com.propertyrental.user.Role.MAINTENANCE_CONTRACTOR) {
+            throw new IllegalArgumentException(
+                    "User must have the MAINTENANCE_CONTRACTOR role");
+        }
+        
+        if (maintenanceAssignmentRepository
+                .findByMaintenanceRequestIdAndContractorId(requestId, contractorId)
+                .isPresent()) {
+            throw new IllegalArgumentException(
+                    "Contractor is already assigned to this maintenance request");
+        }
+        MaintenanceAssignment assignment = new MaintenanceAssignment();
+        assignment.setMaintenanceRequest(maintenanceRequest);
+        assignment.setContractor(contractor);
+        assignment.setAssignedAt(LocalDateTime.now());
+
+        return maintenanceAssignmentRepository.save(assignment);
+    }
+    
+    @Transactional
+    public void unassignContractor(
+            Long requestId,
+            Long contractorId) {
+
+        if (!maintenanceRequestRepository.existsById(requestId)) {
+            throw new ResourceNotFoundException(
+                    "Maintenance request not found: " + requestId);
+        }
+
+        if (!userRepository.existsById(contractorId)) {
+            throw new ResourceNotFoundException(
+                    "User not found: " + contractorId);
+        }
+
+        Optional<MaintenanceAssignment> assignment =
+                maintenanceAssignmentRepository
+                        .findByMaintenanceRequestIdAndContractorId(
+                                requestId,
+                                contractorId);
+
+        if (assignment.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Contractor is not assigned to this maintenance request");
+        }
+
+        maintenanceAssignmentRepository
+                .deleteByMaintenanceRequestIdAndContractorId(
+                        requestId,
+                        contractorId);
     }
 }

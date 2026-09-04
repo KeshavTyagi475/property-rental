@@ -1,6 +1,8 @@
 package com.propertyrental.maintenance;
 
 import jakarta.validation.Valid;
+
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,6 +36,30 @@ public class MaintenanceRequestController {
         return maintenanceRequestService.updateRequest(
                 requestId,
                 request
+        );
+    }
+    
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
+    @PostMapping("/requests/{requestId}/assignments")
+    public MaintenanceAssignment assignContractor(
+            @PathVariable Long requestId,
+            @Valid @RequestBody AssignContractorRequest request) {
+
+        return maintenanceRequestService.assignContractor(
+                requestId,
+                request.contractorId()
+        );
+    }
+    
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
+    @DeleteMapping("/requests/{requestId}/assignments/{contractorId}")
+    public void unassignContractor(
+            @PathVariable Long requestId,
+            @PathVariable Long contractorId) {
+
+        maintenanceRequestService.unassignContractor(
+                requestId,
+                contractorId
         );
     }
 }
