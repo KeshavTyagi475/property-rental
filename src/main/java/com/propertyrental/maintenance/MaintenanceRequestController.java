@@ -62,4 +62,15 @@ public class MaintenanceRequestController {
                 contractorId
         );
     }
+    
+    @PutMapping("/requests/{requestId}/status")
+    public MaintenanceRequest updateStatus(
+            @PathVariable Long requestId,
+            @Valid @RequestBody UpdateMaintenanceStatusRequest request) {
+
+        return maintenanceRequestService.updateStatus(
+                requestId,
+                request.status()
+        );
+    }
 }

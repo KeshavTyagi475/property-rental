@@ -137,4 +137,71 @@ public class MaintenanceRequestService {
                         requestId,
                         contractorId);
     }
+    
+    public MaintenanceRequest updateStatus(
+            Long requestId,
+            Status newStatus) {
+
+        MaintenanceRequest maintenanceRequest =
+                maintenanceRequestRepository.findById(requestId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Maintenance request not found: " + requestId));
+
+        Status currentStatus = maintenanceRequest.getStatus();
+
+        if (!isValidTransition(currentStatus, newStatus)) {
+            throw new IllegalArgumentException(
+                    "Invalid status transition from "
+                            + currentStatus
+                            + " to "
+                            + newStatus);
+        }
+
+        if (newStatus == Status.SCHEDULED) {
+            boolean hasAssignment =
+                    maintenanceAssignmentRepository
+                            .findByMaintenanceRequestId(requestId)
+                            .stream()
+                            .findAny()
+                            .isPresent();
+
+            if (!hasAssignment) {
+                throw new IllegalArgumentException(
+                        "Cannot schedule a maintenance request without an assigned contractor");
+            }
+        }
+
+        maintenanceRequest.setStatus(newStatus);
+        maintenanceRequest.setUpdatedAt(LocalDateTime.now());
+
+        return maintenanceRequestRepository.save(maintenanceRequest);
+    }
+
+    private boolean isValidTransition(
+            Status currentStatus,
+            Status newStatus) {
+
+        if (currentStatus == Status.REPORTED
+                && newStatus == Status.TRIAGED) {
+            return true;
+        }
+
+        if (currentStatus == Status.TRIAGED
+                && newStatus == Status.SCHEDULED) {
+            return true;
+        }
+
+        if (currentStatus == Status.SCHEDULED
+                && newStatus == Status.RESOLVED) {
+            return true;
+        }
+
+        if (currentStatus == Status.RESOLVED
+                && newStatus == Status.TRIAGED) {
+            return true;
+        }
+
+        return false;
+    }
 }
