@@ -5,6 +5,8 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -55,5 +57,30 @@ public class RentPaymentController {
                                         + unitId
                                         + " and month "
                                         + paymentMonth));
+    }
+    
+    @PostMapping("/bulk")
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
+    public BulkRentPaymentResponse recordBulkPayments(
+            @Valid @RequestBody BulkRentPaymentRequest request,
+            Authentication authentication) {
+
+        return rentPaymentService.recordBulkPayments(
+                request,
+                authentication.getName());
+    }
+    
+    @GetMapping(value = "/rent-roll", produces = "text/csv")
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
+    public ResponseEntity<String> generateRentRoll(
+            @RequestParam LocalDate paymentMonth) {
+
+        String csv = rentPaymentService.generateRentRoll(paymentMonth);
+
+        return ResponseEntity.ok()
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=rent-roll-" + paymentMonth + ".csv")
+                .body(csv);
     }
 }
