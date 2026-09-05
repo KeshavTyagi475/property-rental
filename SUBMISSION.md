@@ -2,7 +2,8 @@
 
 ## 🔗 Links
 - **GitHub Repository**: [KeshavTyagi475/property-rental](https://github.com/KeshavTyagi475/property-rental)
-- **Live Application**: To be added after deployment
+- **Live Application**: [Live application:](https://property-rental-frontend.onrender.com)
+- **Backend API**: [Backend](https://property-rental-ehdx.onrender.com)
 
 ---
 
@@ -31,8 +32,14 @@
 | **Frontend** | React, TypeScript, Vite, Tailwind CSS, React Router, Axios                | Typed UI, role-aware navigation, REST API integration                   |
 | **Backend**  | Java 21, Spring Boot 3.x, Spring Security, Spring Data JPA, Jakarta Validation | REST APIs, authorization, business rules, validation, persistence       |
 | **Database** | PostgreSQL 17 + Flyway                                                   | Relational persistence, constraints, versioned schema migrations        |
-| **Hosting**  | To be added after deployment                                             | Deployment platform will be documented once live                        |
+| **Hosting**  | Render (Static Site + Web Service + PostgreSQL)                          | Deployment platform will be documented once live                        |
 
+---
+##Deployment note:
+The application is deployed on Render using a React/Vite static site,
+a Spring Boot web service, and PostgreSQL 17. The PostgreSQL free tier
+is intended for the assignment/demo deployment and is subject to
+Render's current free-tier limitations and expiration policy.
 ---
 
 ## 🎯 Goal Checklist
