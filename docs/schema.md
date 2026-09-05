@@ -57,3 +57,4 @@ and payment month.
 
 ```text
 (unit_id, payment_month) UNIQUE
+```
