@@ -6,10 +6,10 @@ import {
   CreditCard,
   Bell,
 } from "lucide-react";
-
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-
+import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { getAlerts } from "../api/alerts";
 
 const navigation = [
   { name: "Dashboard", path: "/", icon: Home, managerOnly: true },
@@ -22,8 +22,27 @@ const navigation = [
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [alertCount, setAlertCount] = useState(0);
 
   const isManager = user?.roles.includes("ROLE_PROPERTY_MANAGER");
+
+  useEffect(() => {
+    if (!isManager) {
+      setAlertCount(0);
+      return;
+    }
+
+    async function loadAlertCount() {
+      try {
+        const alerts = await getAlerts();
+        setAlertCount(alerts.filter((alert) => !alert.dismissed).length);
+      } catch {
+        setAlertCount(0);
+      }
+    }
+
+    loadAlertCount();
+  }, [isManager]);
 
   async function handleLogout() {
     await logout();
@@ -51,15 +70,23 @@ export default function Layout() {
                 to={item.path}
                 end={item.path === "/"}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
+                  `flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium ${
                     isActive
                       ? "bg-gray-700 text-white"
                       : "text-gray-300 hover:bg-gray-800 hover:text-white"
                   }`
                 }
               >
-                <Icon size={18} />
-                {item.name}
+                <span className="flex items-center gap-3">
+                  <Icon size={18} />
+                  {item.name}
+                </span>
+
+                {item.name === "Alerts" && alertCount > 0 && (
+                  <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
+                    {alertCount}
+                  </span>
+                )}
               </NavLink>
             );
           })}
