@@ -4,14 +4,21 @@ import org.springframework.stereotype.Service;
 import com.propertyrental.ResourceNotFoundException;
 import java.util.List;
 import java.time.LocalDateTime;
+import com.propertyrental.maintenance.MaintenanceRequest;
+import com.propertyrental.maintenance.MaintenanceRequestRepository;
 
 @Service
 public class UnitService {
 
     private final UnitRepository unitRepository;
+    private final MaintenanceRequestRepository maintenanceRequestRepository;
 
-    public UnitService(UnitRepository unitRepository) {
+    public UnitService(
+            UnitRepository unitRepository,
+            MaintenanceRequestRepository maintenanceRequestRepository) {
+
         this.unitRepository = unitRepository;
+        this.maintenanceRequestRepository = maintenanceRequestRepository;
     }
 
     public List<Unit> getAllUnits() {
@@ -69,5 +76,16 @@ public class UnitService {
         unit.setArchived(false);
         unit.setUpdatedAt(LocalDateTime.now());
         return unitRepository.save(unit);
+    }
+    
+    public List<MaintenanceRequest> getMaintenanceRequests(Long unitId) {
+
+        if (!unitRepository.existsById(unitId)) {
+            throw new ResourceNotFoundException(
+                    "Unit not found: " + unitId);
+        }
+
+        return maintenanceRequestRepository
+                .findByUnitIdOrderByCreatedAtDesc(unitId);
     }
 }

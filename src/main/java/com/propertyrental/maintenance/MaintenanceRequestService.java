@@ -445,4 +445,15 @@ public class MaintenanceRequestService {
 
         return Sort.by(direction, property);
     }
+    
+    public MaintenanceRequest getRequestById(Long requestId, String username) {
+        MaintenanceRequest request = maintenanceRequestRepository.findById(requestId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Maintenance request not found: " + requestId));
+
+        verifyMaintenanceRequestAccess(request, username);
+
+        return request;
+    }
 }

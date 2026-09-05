@@ -28,6 +28,14 @@ public class UnitController {
         return unitService.getUnit(id);
     }
     
+    @GetMapping("/{id}/maintenance")
+    @PreAuthorize("hasRole('PROPERTY_MANAGER')")
+    public List<com.propertyrental.maintenance.MaintenanceRequest> getMaintenanceRequests(
+            @PathVariable Long id) {
+
+        return unitService.getMaintenanceRequests(id);
+    }
+    
     @PreAuthorize("hasRole('PROPERTY_MANAGER')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

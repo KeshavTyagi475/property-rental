@@ -98,6 +98,17 @@ public class MaintenanceRequestController {
                 .toList();
     }
     
+    @GetMapping("/requests/{requestId}")
+    public MaintenanceRequestResponse getRequestById(
+            @PathVariable Long requestId,
+            Authentication authentication) {
+
+        return MaintenanceRequestMapper.toResponse(
+                maintenanceRequestService.getRequestById(
+                        requestId,
+                        authentication.getName()));
+    }
+    
     @PostMapping("/requests/{requestId}/timeline/notes")
     public MaintenanceTimelineResponse addNote(
             @PathVariable Long requestId,
