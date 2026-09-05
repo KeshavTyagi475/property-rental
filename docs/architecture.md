@@ -4,212 +4,174 @@ What are the moving pieces, and how do they talk to each other?
 
 The system is a lean modular monolith with a React frontend and a Spring Boot REST backend.
 
-Frontend
+---
 
-The frontend is built with React, TypeScript, Vite, Tailwind CSS, and React Router.
+## Frontend
 
-Main responsibilities:
+The frontend is built with **React**, **TypeScript**, **Vite**, **Tailwind CSS**, and **React Router**.
 
+### Main Responsibilities
 
+- Authentication and session-aware UI
+- Manager and contractor navigation
+- Unit management
+- Maintenance request management
+- Contractor assignment
+- Maintenance lifecycle updates
+- Maintenance search and filtering
+- Rent recording and rent-roll display
+- Dashboard and rent-alert views
 
+### Communication
 
+The frontend communicates with the backend through REST APIs under `/api`.
 
-Authentication and session-aware UI
+- **HTTP Client**: Axios
+- **Session Management**: Requests include credentials so the server-side HTTP session cookie is sent with API requests
 
+---
 
+## Backend
 
-Manager and contractor navigation
+The backend is a **Java 21 Spring Boot** application organized into domain modules:
 
+- `auth`
+- `security`
+- `user`
+- `unit`
+- `rent`
+- `maintenance`
+- `dashboard`
+- `alert`
 
+### Request Flow
 
-Unit management
-
-
-
-Maintenance request management
-
-
-
-Contractor assignment
-
-
-
-Maintenance lifecycle updates
-
-
-
-Maintenance search and filtering
-
-
-
-Rent recording and rent-roll display
-
-
-
-Dashboard and rent-alert views
-
-The frontend communicates with the backend through REST APIs under /api.
-
-Axios is used as the HTTP client. Requests include credentials so the server-side HTTP session cookie is sent with API requests.
-
-Backend
-
-The backend is a Java 21 Spring Boot application.
-
-It is organized into domain modules such as:
-
-
-
-
-
-auth
-
-
-
-security
-
-
-
-user
-
-
-
-unit
-
-
-
-rent
-
-
-
-maintenance
-
-
-
-dashboard
-
-
-
-alert
-
-The main request flow follows:
-
-
+```
 Controller → Service → Repository → PostgreSQL
+```
 
-Controllers expose REST endpoints and handle HTTP concerns. Services contain business rules and authorization-sensitive operations. Repositories use Spring Data JPA to access PostgreSQL.
+- **Controllers**: Expose REST endpoints and handle HTTP concerns
+- **Services**: Contain business rules and authorization-sensitive operations
+- **Repositories**: Use Spring Data JPA to access PostgreSQL
+- **Security**: Spring Security provides authentication and server-side role enforcement
+  - Manager-only operations are protected with Spring Security method authorization
+  - Frontend route restrictions provide additional UX protection
 
-Spring Security provides authentication and server-side role enforcement. Manager-only operations are protected with Spring Security method authorization as well as frontend route restrictions.
+---
 
-### Database
+## Database
 
-PostgreSQL stores the application data.
+**PostgreSQL** stores the application data.
 
-Flyway owns database schema migrations. Hibernate is configured with `ddl-auto=validate`, so Hibernate validates the schema rather than creating or modifying it.
+### Schema Management
 
-Important relationships include:
+- **Flyway** owns database schema migrations
+- **Hibernate** is configured with `ddl-auto=validate` (validates schema rather than creating/modifying it)
 
-- Units have rent payments.
-- Maintenance requests belong to exactly one unit.
-- Maintenance requests can have many contractor assignments.
-- Contractors can be assigned to many maintenance requests through the explicit `maintenance_assignments` join entity.
-- Maintenance requests have an append-only timeline.
-- Rent alerts are associated with units and months.
+### Key Relationships
 
-## Where does each piece run?
+| Relationship | Description |
+|---|---|
+| Units ↔ Rent Payments | One-to-many |
+| Units ↔ Maintenance Requests | One-to-many |
+| Maintenance Requests ↔ Contractors | Many-to-many via `maintenance_assignments` |
+| Maintenance Requests ↔ Timeline | One-to-many (append-only) |
+| Units ↔ Rent Alerts | One-to-many |
 
-During local development:
+---
 
+## Deployment Architecture
+
+### Local Development
+
+```
 Browser
-
    │
-
    │ HTTP
-
    ▼
-
 React/Vite frontend :5173
-
    │
-
    │ /api proxy
-
    ▼
-
 Spring Boot backend :8080
-
    │
-
    │ JDBC / JPA
-
    ▼
+PostgreSQL :5432
+```
 
-PostgreSQL :5432  
-  
-The Vite development server serves the React application and proxies `/api` requests to the Spring Boot application.
+- **Vite dev server**: Serves React application and proxies `/api` requests to Spring Boot
+- **Spring Boot**: Packaged Java application connecting to PostgreSQL using environment-provided credentials
+- **PostgreSQL**: Application data persistence
 
-The Spring Boot application runs as a packaged Java application and connects to PostgreSQL using environment-provided database credentials.
+### Production Deployment
 
-For deployment, the frontend and backend can be hosted as application services with PostgreSQL as the persistent database. Secrets such as database credentials are supplied through environment variables rather than committed to Git.
+- Frontend and backend hosted as separate application services
+- PostgreSQL as persistent database
+- Secrets (database credentials) supplied through environment variables
 
-## What is the request path for one representative user action, end to end?
+---
 
-Consider a manager assigning a contractor to a maintenance request.
+## Request Flow Example: Manager Assigns Contractor to Maintenance Request
 
-1. The manager logs into the React application.
-2. The frontend sends `POST /api/auth/login` with the manager credentials.
-3. Spring Security authenticates the manager and stores the authenticated security context in the HTTP session.
-4. The manager opens a maintenance request in the React UI.
-5. The frontend sends a request to the maintenance assignment endpoint with the contractor ID.
-6. Spring Security checks that the authenticated user has the `PROPERTY_MANAGER` role.
-7. `MaintenanceRequestController` receives the HTTP request.
-8. `MaintenanceRequestService` validates the request and contractor, creates the `MaintenanceAssignment`, and records an assignment event in the maintenance timeline.
-9. `MaintenanceAssignmentRepository` persists the assignment and the timeline repository persists the immutable timeline event.
-10. PostgreSQL stores the changes.
-11. The backend maps the entities to response DTOs.
-12. The frontend receives the response and updates the maintenance request view.
+1. Manager logs into React application
+2. Frontend sends `POST /api/auth/login` with manager credentials
+3. Spring Security authenticates manager, stores context in HTTP session
+4. Manager opens maintenance request in React UI
+5. Frontend sends request to maintenance assignment endpoint with contractor ID
+6. Spring Security checks for `PROPERTY_MANAGER` role
+7. `MaintenanceRequestController` receives HTTP request
+8. `MaintenanceRequestService` validates request and contractor:
+   - Creates `MaintenanceAssignment`
+   - Records assignment event in maintenance timeline
+9. `MaintenanceAssignmentRepository` persists assignment
+10. Timeline repository persists immutable timeline event
+11. PostgreSQL stores changes
+12. Backend maps entities to response DTOs
+13. Frontend receives response and updates maintenance request view
 
-The same Controller → Service → Repository path is used for other domain operations, with business rules enforced on the server rather than relying on the frontend.
+**Note**: The same Controller → Service → Repository pattern applies to all domain operations, with business rules enforced on the server rather than relying on the frontend.
 
-## What did you decide not to build, and why?
+---
 
-### JWT authentication
+## Architectural Decisions
 
-We used HTTP session/cookie authentication instead of JWT because this is a browser-based application and the assignment does not require a stateless API. Server-side sessions also make role enforcement straightforward.
+### ✅ HTTP Session/Cookie Authentication (not JWT)
 
-### Microservices
+**Why**: Browser-based application without stateless API requirement. Server-side sessions enable simpler role enforcement and session management.
 
-We did not split the application into microservices. The assignment is small enough that a modular monolith provides simpler development, deployment, debugging, and transaction handling.
+### ✅ Modular Monolith (not Microservices)
 
-### Client-side maintenance filtering
+**Why**: Assignment scope is small enough that a monolith provides simpler development, deployment, debugging, and transactional consistency.
 
-We did not load all maintenance requests into the browser and filter them there. Search, filtering, sorting, and pagination are performed by the backend so the API can return the requested page and total count.
+### ✅ Server-Side Search & Filtering (not Client-Side)
 
-### Separate assignment microservice or implicit many-to-many mapping
+**Why**: Backend performs search, filtering, sorting, and pagination so the API returns only the requested page and total count without loading all requests into the browser.
 
-We used an explicit `maintenance_assignments` entity rather than hiding the relationship behind a JPA many-to-many mapping. This gives the system a place to store assignment metadata such as `assigned_at` and supports assignment/unassignment timeline events.
+### ✅ Explicit `maintenance_assignments` Entity (not Implicit Many-to-Many)
 
-### Hibernate-managed schema creation
+**Why**: Provides a place to store assignment metadata (e.g., `assigned_at` timestamp) and maintains clear visibility of the data model.
 
-We did not use Hibernate to create the production schema. Flyway migrations provide explicit, versioned database changes, while Hibernate only validates the resulting schema.
+### ✅ Flyway Migrations (not Hibernate-Managed Schema)
 
-### Client-side authorization as the security boundary
+**Why**: Explicit, versioned database changes with Hibernate validating the resulting schema provide better production control and auditability.
 
-The frontend hides manager-only navigation from contractors, but this is only a usability layer. Actual authorization is enforced on the backend with Spring Security so a contractor cannot bypass the UI and call manager-only APIs directly.
+### ✅ Server-Side Authorization (not Client-Side Only)
 
-### GraphQL and Spring Data REST
+**Why**: Frontend hides manager-only navigation for UX, but actual authorization is enforced server-side with Spring Security. Contractors cannot bypass frontend restrictions.
 
-We used explicit REST controllers because the assignment calls for a conventional REST API and explicit business logic. This keeps the API surface and authorization rules visible in the application code.
+### ✅ Explicit REST Controllers (not GraphQL or Spring Data REST)
 
-### H2 or an in-memory production database
+**Why**: Assignment requires conventional REST API. Explicit controllers keep API surface and authorization rules visible in the application code.
 
-We use PostgreSQL because persistence, relational constraints, migrations, rent-payment uniqueness, assignments, and historical maintenance data are important parts of the application.
+### ✅ PostgreSQL (not H2 or In-Memory Database)
 
-### Redux
+**Why**: Persistence, relational constraints, migrations, rent-payment uniqueness, assignments, and historical maintenance data are core to the application.
 
-We did not introduce Redux because the current application state is small enough to manage with React state, context, and server requests without adding global state-management complexity.
+### ✅ React Context API (not Redux)
 
-### WebFlux
+**Why**: Current application state is small enough to manage with React state and context without global state-management overhead.
 
-We use Spring MVC rather than reactive WebFlux because the application is a conventional CRUD/business application and does not have a requirement for reactive processing.
+### ✅ Spring MVC (not WebFlux)
 
+**Why**: Conventional CRUD/business application without reactive processing requirements.
